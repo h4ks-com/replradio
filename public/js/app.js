@@ -19,6 +19,16 @@ async function init() {
         // Initialize Strudel audio engine
         await initStrudel();
 
+        // Check what Strudel functions are available
+        console.log('Strudel functions available:', {
+            note: typeof note !== 'undefined',
+            s: typeof s !== 'undefined',
+            sound: typeof sound !== 'undefined',
+            mini: typeof mini !== 'undefined',
+            evaluate: typeof evaluate !== 'undefined',
+            repl: typeof repl !== 'undefined'
+        });
+
         // Preload common sample banks
         showLoading('Loading sound banks...');
         try {
@@ -134,8 +144,16 @@ async function playCode() {
 
         const code = editor.getValue();
 
-        // Evaluate the code and auto-play if it returns a pattern
-        const result = eval(code);
+        // Use Strudel's evaluate function if available, otherwise fallback to eval
+        let result;
+        if (typeof evaluate === 'function') {
+            result = await evaluate(code);
+        } else if (typeof repl !== 'undefined' && typeof repl.evaluate === 'function') {
+            result = await repl.evaluate(code);
+        } else {
+            // Fallback to eval with Strudel context
+            result = eval(code);
+        }
 
         // If the result is a pattern object with a play method, call it
         if (result && typeof result.play === 'function') {
