@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- DJ Icon - 90s Style -->
+  <defs>
+    <style>
+      .dj-primary { fill: #00ff00; }
+      .dj-secondary { fill: #00cc00; }
+      .dj-accent { fill: #003300; }
+    </style>
+  </defs>
+
+  <!-- Head -->
+  <circle cx="32" cy="24" r="12" class="dj-primary"/>
+
+  <!-- Headphones band -->
+  <path d="M 20 20 Q 32 8, 44 20" stroke="#00ff00" stroke-width="3" fill="none"/>
+
+  <!-- Left headphone -->
+  <rect x="16" y="22" width="6" height="8" rx="1" class="dj-secondary"/>
+
+  <!-- Right headphone -->
+  <rect x="42" y="22" width="6" height="8" rx="1" class="dj-secondary"/>
+
+  <!-- Body -->
+  <rect x="24" y="36" width="16" height="18" rx="2" class="dj-primary"/>
+
+  <!-- Arms -->
+  <rect x="16" y="40" width="8" height="3" rx="1" class="dj-secondary"/>
+  <rect x="40" y="40" width="8" height="3" rx="1" class="dj-secondary"/>
+
+  <!-- Turntable left -->
+  <circle cx="18" cy="52" r="6" class="dj-secondary"/>
+  <circle cx="18" cy="52" r="2" class="dj-accent"/>
+
+  <!-- Turntable right -->
+  <circle cx="46" cy="52" r="6" class="dj-secondary"/>
+  <circle cx="46" cy="52" r="2" class="dj-accent"/>
+
+  <!-- Sound waves -->
+  <path d="M 8 30 Q 6 32, 8 34" stroke="#00ff00" stroke-width="1" fill="none" opacity="0.6"/>
+  <path d="M 4 28 Q 2 32, 4 36" stroke="#00ff00" stroke-width="1" fill="none" opacity="0.4"/>
+  <path d="M 56 30 Q 58 32, 56 34" stroke="#00ff00" stroke-width="1" fill="none" opacity="0.6"/>
+  <path d="M 60 28 Q 62 32, 60 36" stroke="#00ff00" stroke-width="1" fill="none" opacity="0.4"/>
+</svg>

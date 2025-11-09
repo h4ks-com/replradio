@@ -1,0 +1,533 @@
+/* ====================================
+   H4KS Radio REPL - 90s Terminal Theme
+   ==================================== */
+
+:root {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #252525;
+    --bg-tertiary: #2f2f2f;
+    --text-primary: #f0f0f0;
+    --text-secondary: #c0c0c0;
+    --text-dim: #909090;
+    --accent-green: #00ff41;
+    --border-color: #404040;
+    --btn-hover: #00ff41;
+    --warning-bg: #3a2a10;
+    --warning-text: #ffcc00;
+    --error-bg: #3a1010;
+    --error-text: #ff6666;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Courier New', Courier, 'Lucida Console', Monaco, monospace;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* Subtle scanline effect */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: repeating-linear-gradient(
+        0deg,
+        rgba(0, 0, 0, 0.05) 0px,
+        rgba(0, 0, 0, 0.05) 1px,
+        transparent 1px,
+        transparent 2px
+    );
+    pointer-events: none;
+    z-index: 9999;
+}
+
+/* Terminal Container */
+.terminal-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+    position: relative;
+    z-index: 1;
+}
+
+/* Header */
+.terminal-header {
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    padding: 15px 20px;
+    margin-bottom: 15px;
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.dj-icon {
+    filter: drop-shadow(0 0 4px rgba(0, 255, 65, 0.3));
+}
+
+.title {
+    font-size: 2rem;
+    font-weight: bold;
+    letter-spacing: 0.2em;
+    color: var(--accent-green);
+    text-shadow: 0 0 10px rgba(0, 255, 65, 0.4);
+    flex: 1;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent-green);
+    box-shadow: 0 0 8px var(--accent-green);
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0.4; }
+}
+
+.status-text {
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+/* Main Content */
+.main-content {
+    display: grid;
+    grid-template-columns: 1fr 350px;
+    gap: 20px;
+}
+
+/* REPL Container */
+.repl-container {
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    padding: 20px;
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
+}
+
+/* Controls Panel */
+.controls-panel {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.btn {
+    padding: 10px 20px;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.btn:hover:not(:disabled) {
+    background: var(--bg-secondary);
+    border-color: var(--accent-green);
+    color: var(--accent-green);
+    box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+}
+
+.btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    border-color: var(--text-dim);
+}
+
+.btn-primary {
+    border-color: var(--text-primary);
+}
+
+.btn-secondary {
+    border-color: var(--text-secondary);
+}
+
+.btn-accent {
+    border-color: var(--text-secondary);
+}
+
+.share-status {
+    margin-left: auto;
+    font-size: 0.85rem;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    min-width: 200px;
+}
+
+.share-status.success {
+    border-color: var(--text-primary);
+    color: var(--text-primary);
+}
+
+.share-status.error {
+    border-color: var(--error-text);
+    color: var(--error-text);
+    background: var(--error-bg);
+}
+
+/* Editor Wrapper */
+.editor-wrapper {
+    height: 500px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary);
+}
+
+/* CodeMirror Editor */
+#strudel-container {
+    height: 100%;
+}
+
+#strudel-container .CodeMirror {
+    height: 100%;
+    font-size: 14px;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+/* Override Monokai theme for our dark aesthetic */
+#strudel-container .CodeMirror-gutters {
+    background: var(--bg-secondary) !important;
+    border-right: 1px solid var(--border-color) !important;
+}
+
+#strudel-container .CodeMirror-linenumber {
+    color: var(--text-dim) !important;
+}
+
+#strudel-container .CodeMirror-cursor {
+    border-left-color: var(--accent-green) !important;
+}
+
+#strudel-container .CodeMirror-selected {
+    background: rgba(0, 255, 65, 0.2) !important;
+}
+
+#strudel-container .CodeMirror-activeline-background {
+    background: rgba(0, 255, 65, 0.05) !important;
+}
+
+/* Info Panel */
+.info-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.info-section {
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    padding: 15px;
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.15);
+}
+
+.info-section h3 {
+    margin-bottom: 10px;
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    text-shadow: 0 0 8px rgba(0, 255, 0, 0.6);
+}
+
+.info-section ul {
+    list-style: none;
+    padding-left: 0;
+}
+
+.info-section li {
+    padding: 5px 0;
+    color: var(--text-secondary);
+}
+
+.info-section li::before {
+    content: '> ';
+    color: var(--text-primary);
+}
+
+.info-section pre {
+    background: var(--bg-primary);
+    border: 1px solid var(--text-dim);
+    padding: 10px;
+    overflow-x: auto;
+    font-size: 0.85rem;
+}
+
+.info-section code {
+    color: var(--text-secondary);
+}
+
+.info-section p {
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+}
+
+.info-section a {
+    color: var(--accent-green);
+    text-decoration: none;
+    text-shadow: 0 0 5px rgba(0, 255, 65, 0.3);
+    display: block;
+    padding: 8px 12px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    transition: all 0.2s;
+}
+
+.info-section a:hover {
+    border-color: var(--accent-green);
+    box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+    text-shadow: 0 0 8px rgba(0, 255, 65, 0.5);
+}
+
+/* Loading Overlay */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 26, 0, 0.95);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    z-index: 10000;
+}
+
+.loading-overlay.show {
+    display: flex;
+}
+
+.loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid var(--text-dim);
+    border-top-color: var(--text-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-text {
+    margin-top: 20px;
+    font-size: 1.2rem;
+    color: var(--text-primary);
+    text-shadow: 0 0 10px rgba(0, 255, 0, 0.8);
+}
+
+/* Modal */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    backdrop-filter: blur(4px);
+}
+
+.modal.show {
+    display: flex;
+}
+
+.modal-content {
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    box-shadow: 0 0 30px rgba(0, 255, 65, 0.3);
+    max-width: 500px;
+    width: 90%;
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-header {
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.3rem;
+    color: var(--accent-green);
+    text-shadow: 0 0 10px rgba(0, 255, 65, 0.4);
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.modal-body p {
+    margin: 0 0 15px 0;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.modal-body p:last-child {
+    margin-bottom: 0;
+}
+
+.modal-warning {
+    color: var(--warning-text);
+    background: var(--warning-bg);
+    padding: 12px;
+    border: 1px solid var(--warning-text);
+    font-weight: bold;
+}
+
+.modal-footer {
+    padding: 20px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.modal-footer .btn {
+    min-width: 100px;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .main-content {
+        grid-template-columns: 1fr;
+    }
+
+    .info-panel {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        grid-auto-flow: dense;
+    }
+}
+
+@media (max-width: 768px) {
+    .terminal-container {
+        padding: 10px;
+    }
+
+    .title {
+        font-size: 1.5rem;
+    }
+
+    .header-content {
+        flex-wrap: wrap;
+    }
+
+    .status-indicator {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .controls-panel {
+        flex-direction: column;
+    }
+
+    .btn {
+        width: 100%;
+    }
+
+    .share-status {
+        width: 100%;
+        margin-left: 0;
+        margin-top: 10px;
+    }
+
+    .editor-wrapper {
+        height: 400px;
+    }
+
+    .info-panel {
+        display: block;
+    }
+}
+
+@media (max-width: 480px) {
+    .title {
+        font-size: 1.2rem;
+        letter-spacing: 0.1em;
+    }
+
+    .dj-icon {
+        width: 32px;
+        height: 32px;
+    }
+
+    .editor-wrapper {
+        height: 300px;
+    }
+
+    .modal-content {
+        width: 95%;
+    }
+
+    .modal-footer {
+        flex-direction: column;
+    }
+
+    .modal-footer .btn {
+        width: 100%;
+    }
+}
+
+/* Print styles */
+@media print {
+    body::before,
+    body::after {
+        display: none;
+    }
+
+    .terminal-container {
+        max-width: 100%;
+    }
+
+    .controls-panel {
+        display: none;
+    }
+}

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en" translate="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="H4KS Radio REPL - Live code music with Strudel">
+
+    <!-- Disable automatic translation and extension interference -->
+    <meta name="google" content="notranslate">
+    <meta http-equiv="Content-Language" content="en">
+
+    <title>H4KS Radio REPL</title>
+    <link rel="icon" type="image/svg+xml" href="/assets/dj-icon.svg">
+
+    <link rel="stylesheet" href="/css/style.css">
+
+    <!-- Strudel Web API + CodeMirror for syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+    <script src="/vendor/strudel-web.js"></script>
+</head>
+<body>
+    <div class="terminal-container">
+        <header class="terminal-header">
+            <div class="header-content">
+                <img src="/assets/dj-icon.svg" alt="DJ Icon" class="dj-icon" width="48" height="48">
+                <h1 class="title">H4KS RADIO REPL</h1>
+                <div class="status-indicator">
+                    <span class="status-dot"></span>
+                    <span class="status-text">READY</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="repl-container">
+                <div class="controls-panel">
+                    <button id="playBtn" class="btn btn-primary" title="Play Pattern (Ctrl+Enter)">
+                        PLAY
+                    </button>
+                    <button id="shareBtn" class="btn btn-accent" title="Share Code">
+                        SHARE
+                    </button>
+                    <button id="recordBtn" class="btn btn-accent" title="Record Audio (Experimental)">
+                        RECORD
+                    </button>
+                    <div class="share-status" id="shareStatus"></div>
+                </div>
+
+                <div class="editor-wrapper" id="strudel-container">
+                    <!-- Strudel REPL will be injected here -->
+                </div>
+            </div>
+
+            <div class="info-panel">
+                <div class="info-section">
+                    <h3>Quick Start</h3>
+                    <ul>
+                        <li>Edit code above</li>
+                        <li>Press PLAY or Ctrl+Enter</li>
+                        <li>Click SHARE to get a link</li>
+                    </ul>
+                </div>
+
+                <div class="info-section">
+                    <h3>Examples</h3>
+                    <p>Check out patterns and tutorials at:</p>
+                    <a href="https://strudel.cc/examples/" target="_blank" rel="noopener">strudel.cc/examples/</a>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Loading overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Loading...</div>
+    </div>
+
+    <!-- Share modal -->
+    <div id="shareModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Share Your Code</h2>
+            </div>
+            <div class="modal-body">
+                <p class="modal-warning">WARNING: Shared code will be automatically deleted after 24 hours.</p>
+                <p>A shareable link will be generated and copied to your clipboard.</p>
+            </div>
+            <div class="modal-footer">
+                <button id="modalCancel" class="btn btn-secondary">Cancel</button>
+                <button id="modalConfirm" class="btn btn-primary">Generate Link</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="/js/app.js"></script>
+</body>
+</html>
