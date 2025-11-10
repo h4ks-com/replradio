@@ -5,42 +5,74 @@ let editor = null;
 let isPlaying = false;
 let audioRecorder = null;
 
-const DEFAULT_CODE = `// Welcome to H4KS Radio REPL!
-// Press PLAY or Ctrl+Enter to hear the pattern
+const DEFAULT_CODE = `// Welcome to H4KS STRUDEL REPL!
+
+// Simple patterns work as-is
 note("c a f e")
-  .s("sawtooth")
+  .sound("sawtooth")
   .slow(2)
-  .play()`;
+
+// For multi-statement code, await samples first:
+// await samples('github:tidalcycles/Dirt-Samples/master')
+//
+// n("[0,3] 2").sound("piano").play()`;
 
 async function init() {
     showLoading('Initializing Strudel...');
 
     try {
-        // Initialize Strudel audio engine
+        console.log('[INIT] Step 1: Initializing Strudel audio engine');
         await initStrudel();
 
-        // Check what Strudel functions are available
-        console.log('Strudel functions available:', {
-            note: typeof note !== 'undefined',
-            s: typeof s !== 'undefined',
-            sound: typeof sound !== 'undefined',
-            mini: typeof mini !== 'undefined',
-            evaluate: typeof evaluate !== 'undefined',
-            repl: typeof repl !== 'undefined'
-        });
+        console.log('[INIT] Step 2: Extending String.prototype');
+        // Enable mini-notation on String.prototype (like official Strudel REPL)
+        if (typeof repl !== 'undefined' && typeof repl.enableMiniNotation === 'function') {
+            repl.enableMiniNotation();
+        } else if (typeof Pattern !== 'undefined') {
+            try {
+                // Manually extend String.prototype with ALL pattern methods and properties
+                String.prototype.mini = function() {
+                    return mini(this.valueOf());
+                };
 
-        // Preload common sample banks
-        showLoading('Loading sound banks...');
-        try {
-            await samples('github:tidalcycles/Dirt-Samples/master');
-            console.log('Sample banks loaded');
-        } catch (error) {
-            console.warn('Sample banks failed to load:', error);
+                // Get all methods and getters from Pattern prototype using descriptors only
+                const proto = Pattern.prototype;
+                Object.getOwnPropertyNames(proto).forEach(key => {
+                    if (key === 'constructor' || String.prototype[key]) return;
+
+                    try {
+                        const descriptor = Object.getOwnPropertyDescriptor(proto, key);
+
+                        if (descriptor.value && typeof descriptor.value === 'function') {
+                            // It's a method
+                            String.prototype[key] = function(...args) {
+                                return mini(this.valueOf())[key](...args);
+                            };
+                        } else if (descriptor.get) {
+                            // It's a getter
+                            Object.defineProperty(String.prototype, key, {
+                                get() {
+                                    return mini(this.valueOf())[key];
+                                },
+                                configurable: true
+                            });
+                        }
+                    } catch (err) {
+                        // Skip properties that cause errors
+                        console.warn(`Failed to add property ${key}:`, err.message);
+                    }
+                });
+            } catch (err) {
+                console.error('Failed to extend String.prototype:', err);
+            }
         }
 
+        console.log('[INIT] Step 3: Strudel initialized - mini-notation enabled!');
+
+        console.log('[INIT] Step 4: Loading code');
         const code = await loadCodeFromURL() || DEFAULT_CODE;
 
-        // Create CodeMirror editor
+        console.log('[INIT] Step 5: Creating CodeMirror editor');
         editor = CodeMirror(document.getElementById('strudel-container'), {
             value: code,
             mode: 'javascript',
@@ -53,6 +85,7 @@ async function init() {
             matchBrackets: true
         });
 
+        console.log('[INIT] Step 6: Setting up audio context interception');
         // Intercept audio context for recording
         const OriginalAudioContext = window.AudioContext || window.webkitAudioContext;
         window.audioContextInstance = null;
@@ -66,20 +99,31 @@ async function init() {
         };
         window.webkitAudioContext = window.AudioContext;
 
+        console.log('[INIT] Step 7: Creating audio recorder');
         audioRecorder = new AudioRecorder();
 
+        console.log('[INIT] Step 8: Setting up event listeners');
         setupEventListeners();
 
+        console.log('[INIT] Step 9: Hiding loading overlay');
         hideLoading();
 
+        console.log('[INIT] Step 10: Checking autoplay');
         const params = getQueryParams();
         if (params.autoplay) {
             setTimeout(() => playCode(), 1000);
         }
+
+        console.log('[INIT] Initialization complete!');
     } catch (error) {
         console.error('Initialization error:', error);
+        console.error('Error details:', {
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+        });
         hideLoading();
-        alert('Initialization error: ' + error.message);
+        alert('Initialization error: ' + error.message + '\n\nCheck console for details.');
     }
 }
 
@@ -119,7 +163,8 @@ function setupEventListeners() {
         if (e.key === 'Escape') {
             hideShareModal();
         }
-        if (e.ctrlKey && e.key === 'Enter') {
+        // Ctrl+Enter or Cmd+Enter to toggle play/stop
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
             e.preventDefault();
             togglePlayStop();
         }
@@ -143,20 +188,79 @@ async function playCode() {
         }
 
         const code = editor.getValue();
+        const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
 
-        // Use Strudel's evaluate function if available, otherwise fallback to eval
+        // Collect Strudel globals to pass as function parameters
+        const globalNames = ['perlin', 'sine', 'saw', 'square', 'tri', 'rand', 'cosine', 'Pattern', 'mini', 'samples', 'sounds', 's', 'n', 'note', 'sound', 'hush'];
+        const globalValues = globalNames.map(name => window[name]).filter(v => v !== undefined);
+        const availableGlobals = globalNames.filter(name => window[name] !== undefined);
+
+        // Split code by double newlines (blank lines) to find statement groups
+        // Filter out comment-only blocks
+        const blocks = code.split(/\n\s*\n/).filter(block => {
+            const trimmed = block.trim();
+            return trimmed && !trimmed.split('\n').every(line => {
+                const l = line.trim();
+                return !l || l.startsWith('//');
+            });
+        });
+
         let result;
-        if (typeof evaluate === 'function') {
-            result = await evaluate(code);
-        } else if (typeof repl !== 'undefined' && typeof repl.evaluate === 'function') {
-            result = await repl.evaluate(code);
+
+        if (blocks.length === 0) {
+            // No code blocks (all comments)
+            return;
+        } else if (blocks.length === 1) {
+            // Single block - insert return before first non-comment line
+            const lines = blocks[0].split('\n');
+            const firstCodeLineIndex = lines.findIndex(line => {
+                const trimmed = line.trim();
+                return trimmed && !trimmed.startsWith('//');
+            });
+
+            if (firstCodeLineIndex !== -1) {
+                lines[firstCodeLineIndex] = 'return ' + lines[firstCodeLineIndex];
+            }
+
+            const wrappedCode = lines.join('\n');
+            const fn = new AsyncFunction(...availableGlobals, wrappedCode);
+            result = await fn.call(window, ...globalValues);
         } else {
-            // Fallback to eval with Strudel context
-            result = eval(code);
+            // Multiple blocks - await each statement, then return last expression
+            // This ensures async operations like samples() complete before pattern plays
+            const statements = blocks.slice(0, -1).map(block => {
+                const trimmed = block.trim();
+                // If statement doesn't start with await and looks like it might return a promise, add await
+                if (!trimmed.startsWith('await') && (trimmed.includes('samples(') || trimmed.includes('sounds('))) {
+                    return `await ${block}`;
+                }
+                return block;
+            }).join('\n\n');
+
+            // Insert return before first non-comment line in last block
+            const lastBlock = blocks[blocks.length - 1];
+            const lines = lastBlock.split('\n');
+            const firstCodeLineIndex = lines.findIndex(line => {
+                const trimmed = line.trim();
+                return trimmed && !trimmed.startsWith('//');
+            });
+
+            if (firstCodeLineIndex !== -1) {
+                lines[firstCodeLineIndex] = 'return ' + lines[firstCodeLineIndex];
+            }
+
+            const lastExpression = lines.join('\n');
+
+            const wrappedCode = statements
+                ? `${statements}\n\n${lastExpression}`
+                : lastExpression;
+
+            const fn = new AsyncFunction(...availableGlobals, wrappedCode);
+            result = await fn.call(window, ...globalValues);
         }
 
-        // If the result is a pattern object with a play method, call it
-        if (result && typeof result.play === 'function') {
+        // Auto-play the pattern if it's a pattern object
+        if (result && typeof result === 'object' && typeof result.play === 'function') {
             console.log('Auto-playing pattern');
             result.play();
         }
@@ -206,7 +310,9 @@ async function shareCode() {
     const code = editor ? editor.getValue() : '';
 
     const shareBtn = document.getElementById('shareBtn');
-    shareBtn.disabled = true;
+    if (shareBtn) {
+        shareBtn.disabled = true;
+    }
     updateShareStatus('Generating share link...', 'loading');
 
     try {
@@ -223,7 +329,9 @@ async function shareCode() {
         updateShareStatus(`Error: ${error.message}`, 'error');
         alert(`Failed to share code: ${error.message}`);
     } finally {
-        shareBtn.disabled = false;
+        if (shareBtn) {
+            shareBtn.disabled = false;
+        }
     }
 }
 
