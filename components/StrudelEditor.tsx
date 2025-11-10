@@ -11,6 +11,10 @@ const CodeMirror = dynamic(
 import { javascript } from '@codemirror/lang-javascript'
 import { oneDark } from '@codemirror/theme-one-dark'
 
+// Dynamic import for Strudel to avoid SSR issues
+let strudelCore: any = null
+let strudelWeb: any = null
+
 const DEFAULT_CODE = `// Welcome to H4KS STRUDEL REPL!
 
 // Simple patterns work as-is
@@ -25,27 +29,8 @@ note("c a f e")
 
 declare global {
   interface Window {
-    initStrudel: () => Promise<void>
-    hush: () => void
-    Pattern: any
-    mini: any
-    perlin: any
-    sine: any
-    saw: any
-    square: any
-    tri: any
-    rand: any
-    cosine: any
-    samples: any
-    sounds: any
-    s: any
-    n: any
-    note: any
-    sound: any
     audioContextInstance: AudioContext | null
-    evaluate: any
-    transpiler: any
-    repl: any
+    hush?: () => void
   }
 }
 
@@ -62,70 +47,109 @@ export default function StrudelEditor() {
   useEffect(() => {
     const initializeStrudel = async () => {
       try {
-        console.log('[INIT] Step 1: Initializing Strudel audio engine')
+        console.log('[INIT] Loading Strudel web package...')
 
-        // Wait for Strudel to be available
-        await new Promise<void>((resolve) => {
-          const checkStrudel = setInterval(() => {
-            if (typeof window.initStrudel !== 'undefined') {
-              clearInterval(checkStrudel)
-              resolve()
+        // Only import @strudel/web (it bundles everything we need)
+        const strudel = await import('@strudel/web')
+        strudelCore = strudel
+        strudelWeb = strudel
+
+        console.log('[INIT] Calling initStrudel()...')
+
+        // Call initStrudel to register the REPL globally
+        // This is required for Pattern.play() to work
+        await strudel.initStrudel()
+
+        console.log('[INIT] Strudel initialized successfully!')
+
+        // Preload default sample libraries (same as strudel.cc)
+        console.log('[INIT] Preloading default sample libraries...')
+        try {
+          await Promise.all([
+            strudel.samples('https://strudel.b-cdn.net/piano.json'),
+            strudel.samples('https://strudel.b-cdn.net/vcsl.json'),
+            strudel.samples('https://strudel.b-cdn.net/tidal-drum-machines.json'),
+            strudel.samples('https://strudel.b-cdn.net/uzu-drumkit.json'),
+            strudel.samples('https://strudel.b-cdn.net/uzu-wavetables.json'),
+            strudel.samples('https://strudel.b-cdn.net/mridangam.json'),
+            strudel.samples('https://strudel.b-cdn.net/tidal-drum-machines-alias.json'),
+          ])
+          console.log('[INIT] Default sample libraries loaded!')
+        } catch (err) {
+          console.error('[INIT] Error loading default samples:', err)
+        }
+
+        // Set up global functions for eval'd code to use
+        // The transpiler converts code to use these functions
+
+        // Create a wrapper for mini notation that handles source locations
+        // The transpiler calls m(pattern, lineNumber) to convert strings to Patterns
+        // We call mini() and ignore the source location parameter
+        const m = (pattern: string, _location?: number) => strudel.mini(pattern)
+
+        Object.assign(window, {
+          ...strudel,  // All Strudel exports (Pattern, mini, note, sound, etc.)
+          m,  // Mini notation wrapper that ignores source location
+          hush: () => {
+            try {
+              console.log('[hush] Stopping all patterns...')
+
+              // Try Strudel's built-in hush if it exists
+              if (typeof strudel.hush === 'function') {
+                console.log('[hush] Using Strudel built-in hush()')
+                strudel.hush()
+                return
+              }
+
+              // Try to stop the active pattern
+              const activePattern = (window as any).__activePattern
+              if (activePattern && typeof activePattern.stop === 'function') {
+                console.log('[hush] Stopping active pattern...')
+                activePattern.stop()
+                console.log('[hush] Active pattern stopped')
+                return
+              }
+
+              // Fallback: try to access scheduler from AudioContext
+              const ctx = strudel.getAudioContext()
+              console.log('[hush] Audio context:', ctx)
+              console.log('[hush] Scheduler:', (ctx as any)?.scheduler)
+
+              if ((ctx as any)?.scheduler) {
+                console.log('[hush] Stopping scheduler...')
+                ;(ctx as any).scheduler.stop()
+                console.log('[hush] Setting silence pattern...')
+                ;(ctx as any).scheduler.setPattern(strudel.silence, true)
+                console.log('[hush] Scheduler stopped and silenced')
+              } else {
+                console.warn('[hush] No scheduler found! Trying webaudio suspend...')
+                // Last resort: suspend the audio context
+                if (ctx && typeof ctx.suspend === 'function') {
+                  ctx.suspend()
+                  console.log('[hush] Audio context suspended')
+                }
+              }
+            } catch (e) {
+              console.error('Hush error:', e)
             }
-          }, 100)
+          }
         })
 
-        await window.initStrudel()
+        console.log('[INIT] Strudel functions exposed globally')
 
-        console.log('[INIT] Step 2: Extending String.prototype')
-
-        // Enable mini-notation on String.prototype
-        if (typeof window.Pattern !== 'undefined') {
-          String.prototype.mini = function() {
-            return window.mini(this.valueOf())
+        // Try to inspect what samples are available
+        try {
+          console.log('[INIT] Checking for sample buffers...')
+          const ctx = strudel.getAudioContext()
+          console.log('[INIT] AudioContext:', ctx)
+          if (ctx && (ctx as any).superdough) {
+            console.log('[INIT] Superdough samples:', (ctx as any).superdough.samples)
           }
-
-          const proto = window.Pattern.prototype
-          Object.getOwnPropertyNames(proto).forEach(key => {
-            if (key === 'constructor') return
-
-            // Check if property already exists without triggering getters
-            if (Object.getOwnPropertyDescriptor(String.prototype, key)) return
-
-            try {
-              const descriptor = Object.getOwnPropertyDescriptor(proto, key)
-
-              if (descriptor && descriptor.value && typeof descriptor.value === 'function') {
-                (String.prototype as any)[key] = function(...args: any[]) {
-                  return window.mini(this.valueOf())[key](...args)
-                }
-              } else if (descriptor && descriptor.get) {
-                Object.defineProperty(String.prototype, key, {
-                  get() {
-                    return window.mini(this.valueOf())[key]
-                  },
-                  configurable: true
-                })
-              }
-            } catch (err) {
-              // Skip properties that cause errors during setup
-            }
-          })
+        } catch (err) {
+          console.error('[INIT] Error checking samples:', err)
         }
 
-        console.log('[INIT] Step 3: Strudel initialized - mini-notation enabled!')
-
-        // Set up audio context interception for recording
-        const OriginalAudioContext = window.AudioContext || (window as any).webkitAudioContext
-        window.audioContextInstance = null
-
-        ;(window as any).AudioContext = function(...args: any[]) {
-          console.log('AudioContext created')
-          window.audioContextInstance = new OriginalAudioContext(...args)
-          return window.audioContextInstance
-        }
-        ;(window as any).webkitAudioContext = (window as any).AudioContext
-
-        console.log('[INIT] Initialization complete!')
+        console.log('[INIT] Strudel ready!')
         setIsLoading(false)
       } catch (error) {
         console.error('Initialization error:', error)
@@ -157,27 +181,39 @@ export default function StrudelEditor() {
 
   const playCode = async () => {
     try {
-      // Resume audio context if suspended
-      if (window.audioContextInstance && window.audioContextInstance.state === 'suspended') {
-        await window.audioContextInstance.resume()
-        console.log('Audio context resumed')
+      if (!strudelCore) {
+        throw new Error('Strudel not initialized yet')
       }
 
-      // Simple approach: use global eval with async wrapper
+      console.log('[playCode] Transpiling code...')
+
+      // Use Strudel's transpiler to transform the code
+      const { output: transpiled } = strudelCore.transpiler(code.trim(), {
+        wrapAsync: true,    // Wrap in async function for await support
+        addReturn: true,    // Auto-add return for last expression
+        simpleLocs: true    // Track source locations for highlighting
+      })
+
+      console.log('[playCode] Transpiled:', transpiled)
+
+      // Execute the transpiled code using global eval
+      // The transpiler already wrapped it in an async IIFE
       const globalEval = eval
+      const result = await globalEval(transpiled)
 
-      let finalCode = code.trim()
+      console.log('[playCode] Result:', result)
+      console.log('[playCode] Result type:', typeof result)
+      console.log('[playCode] Has play method:', typeof result?.play)
 
-      // Add .play() to the end if not already present
-      // This works because .play() gets chained to the last pattern expression
-      if (!finalCode.match(/\.play\(\s*\)$/)) {
-        finalCode = finalCode + '.play()'
+      // Auto-play if the result is a Pattern
+      if (result && typeof result.play === 'function') {
+        console.log('[playCode] Starting pattern playback');
+
+        // Store the pattern globally so hush() can access it
+        (window as any).__activePattern = result;
+
+        result.play();
       }
-
-      console.log('[playCode] Executing code')
-
-      // Execute in async context using string concatenation (avoid template literal issues)
-      await globalEval('(async () => { ' + finalCode + ' })()')
 
       setIsPlaying(true)
       setStatus({text: 'Playing', type: 'playing'})
@@ -189,11 +225,20 @@ export default function StrudelEditor() {
 
   const stopCode = () => {
     try {
+      console.log('[stopCode] Stopping playback...')
+      console.log('[stopCode] window.hush exists:', !!window.hush)
+
       if (window.hush) {
+        console.log('[stopCode] Calling hush()')
         window.hush()
+        console.log('[stopCode] hush() called')
+      } else {
+        console.warn('[stopCode] window.hush is not defined!')
       }
+
       setIsPlaying(false)
       setStatus({text: 'Stopped', type: 'stopped'})
+      console.log('[stopCode] Stop complete')
     } catch (error) {
       console.error('Stop error:', error)
     }
