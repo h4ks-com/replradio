@@ -1,3 +1,18 @@
+# Dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# Testing
+/coverage
+
+# Next.js
+/.next/
+/out/
+
+# Production
+/build
+
 # IDE
 .vscode/
 .idea/
@@ -8,14 +23,16 @@
 # OS
 .DS_Store
 Thumbs.db
+*.pem
 
-# Logs
-*.log
+# Debug
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Environment
 .env
-.env.local
+.env*.local
 
 # MinIO credentials (if stored locally)
 minio-credentials.txt
@@ -23,3 +40,10 @@ minio-credentials.txt
 # Temporary files
 *.tmp
 *.temp
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
