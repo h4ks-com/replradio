@@ -163,15 +163,21 @@ export default function StrudelEditor() {
         console.log('Audio context resumed')
       }
 
-      // Evaluate code in global scope using indirect eval
-      // This makes all window globals (perlin, sine, samples, etc.) accessible
+      // Simple approach: use global eval with async wrapper
       const globalEval = eval
-      const result = globalEval(code)
 
-      // Auto-play the pattern if it's a pattern object
-      if (result && typeof result === 'object' && typeof result.play === 'function') {
-        result.play()
+      let finalCode = code.trim()
+
+      // Add .play() to the end if not already present
+      // This works because .play() gets chained to the last pattern expression
+      if (!finalCode.match(/\.play\(\s*\)$/)) {
+        finalCode = finalCode + '.play()'
       }
+
+      console.log('[playCode] Executing code')
+
+      // Execute in async context using string concatenation (avoid template literal issues)
+      await globalEval('(async () => { ' + finalCode + ' })()')
 
       setIsPlaying(true)
       setStatus({text: 'Playing', type: 'playing'})

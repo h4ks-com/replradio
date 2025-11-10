@@ -1,0 +1,1 @@
+Redirecting to /@strudel/web@1.2.6/dist/index.js
