@@ -284,6 +284,121 @@ export default function StrudelEditor() {
     }
   }
 
+  const toggleRecording = async () => {
+    if (isRecording) {
+      console.log('[RECORD] Stopping recording...')
+
+      if (audioRecorderRef.current) {
+        const { recorder, stream } = audioRecorderRef.current
+
+        if (recorder && recorder.state !== 'inactive') {
+          recorder.stop()
+          console.log('[RECORD] MediaRecorder stopped')
+        }
+
+        if (stream) {
+          stream.getTracks().forEach((track: MediaStreamTrack) => track.stop())
+          console.log('[RECORD] Stream tracks stopped')
+        }
+      }
+
+      setIsRecording(false)
+      setStatus({text: 'Recording stopped', type: 'stopped'})
+    } else {
+      try {
+        console.log('[RECORD] Starting recording...')
+
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: {
+            displaySurface: 'browser',
+          } as any,
+          audio: {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false,
+          } as any,
+          preferCurrentTab: true,
+        } as any)
+
+        console.log('[RECORD] Display media stream obtained:', stream)
+        console.log('[RECORD] Audio tracks:', stream.getAudioTracks())
+        console.log('[RECORD] Video tracks:', stream.getVideoTracks())
+
+        if (stream.getAudioTracks().length === 0) {
+          stream.getTracks().forEach(track => track.stop())
+          throw new Error('No audio track captured. Make sure to check "Share tab audio" when prompted.')
+        }
+
+        stream.getVideoTracks().forEach(track => {
+          track.stop()
+          stream.removeTrack(track)
+        })
+        console.log('[RECORD] Video tracks removed, keeping only audio')
+
+        const mediaRecorder = new MediaRecorder(stream, {
+          mimeType: 'audio/webm;codecs=opus'
+        })
+        console.log('[RECORD] MediaRecorder created:', mediaRecorder)
+
+        const chunks: Blob[] = []
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            chunks.push(event.data)
+            console.log('[RECORD] Data chunk received:', event.data.size, 'bytes')
+          }
+        }
+
+        mediaRecorder.onstop = () => {
+          console.log('[RECORD] MediaRecorder stopped, creating blob...')
+          const blob = new Blob(chunks, { type: 'audio/webm' })
+          console.log('[RECORD] Blob created:', blob.size, 'bytes')
+
+          if (blob.size === 0) {
+            alert('Recording is empty! Make sure to play patterns while recording.')
+            setStatus({text: 'Recording empty!', type: 'error'})
+            return
+          }
+
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = `strudel-recording-${Date.now()}.webm`
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+          URL.revokeObjectURL(url)
+
+          console.log('[RECORD] Download triggered')
+          setStatus({text: 'Recording saved!', type: 'success'})
+        }
+
+        mediaRecorder.onerror = (event) => {
+          console.error('[RECORD] MediaRecorder error:', event)
+          setStatus({text: 'Recording error!', type: 'error'})
+          setIsRecording(false)
+        }
+
+        mediaRecorder.start()
+        audioRecorderRef.current = { recorder: mediaRecorder, stream }
+        setIsRecording(true)
+        setStatus({text: 'Recording... (play patterns now)', type: 'playing'})
+
+        console.log('[RECORD] Recording started successfully')
+      } catch (error) {
+        console.error('[RECORD] Error starting recording:', error)
+        setStatus({text: `Recording error: ${(error as Error).message}`, type: 'error'})
+
+        const errorMsg = (error as Error).message
+        if (errorMsg.includes('Permission denied') || errorMsg.includes('NotAllowedError')) {
+          alert('Recording permission denied. Please allow screen sharing and make sure to check "Share tab audio" in the dialog.')
+        } else {
+          alert(`Failed to start recording: ${errorMsg}`)
+        }
+      }
+    }
+  }
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -462,11 +577,12 @@ export default function StrudelEditor() {
               </button>
 
               <button
+                onClick={toggleRecording}
                 style={{
                   padding: '10px 20px',
-                  background: 'var(--bg-tertiary)',
+                  background: isRecording ? 'var(--error-bg)' : 'var(--bg-tertiary)',
                   color: 'var(--text-primary)',
-                  border: '1px solid var(--text-secondary)',
+                  border: `1px solid ${isRecording ? 'var(--error-text)' : 'var(--text-secondary)'}`,
                   fontFamily: 'inherit',
                   fontSize: '0.9rem',
                   fontWeight: 'bold',
@@ -474,9 +590,9 @@ export default function StrudelEditor() {
                   textTransform: 'uppercase',
                   letterSpacing: '0.05em'
                 }}
-                title="Record Audio (Experimental)"
+                title={isRecording ? "Stop Recording" : "Record Audio (Experimental)"}
               >
-                RECORD
+                {isRecording ? 'STOP REC' : 'RECORD'}
               </button>
 
               {shareStatus.text && (
